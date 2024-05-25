@@ -9,7 +9,7 @@ repository = "https://github.com/master-of-zen/Av1an"
 keywords = ["video"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0"
-rust-version = "1.63"
+rust-version = "1.70"
 edition = "2021"
 readme = "../README.md"
 
@@ -39,7 +39,7 @@ features = ["git", "git2", "build", "rustc", "cargo"]
 
 [dependencies.ffmpeg]
 package = "ffmpeg-the-third"
-version = "1.2.0"
+version = "2.0.1"
 features = ["serialize"]
 
 [features]
