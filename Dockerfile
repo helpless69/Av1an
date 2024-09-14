@@ -50,6 +50,9 @@ RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpe
     tar -xvf ffmpeg.tar.xz && \
     mv -v ffmpeg-master-latest-linux64-gpl/bin/* /usr/local/bin && \
     chmod a+rx /usr/local/bin/ffmpeg
+    wget https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -O x265
+    sudo mv -v x265 /usr/local/bin
+    chmod a+rx /usr/local/bin/x265
 
 
 # Stage 5: Runtime image
