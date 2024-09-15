@@ -53,6 +53,10 @@ RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpe
     curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
     mv -v x265 /usr/local/bin && \
     chmod 777 /usr/local/bin/x265 && \
+    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x264 -o x264 && \
+    mv -v x264 /usr/local/bin && \
+    chmod 777 /usr/local/bin/x264 && \
+    x264 --version && \
     x265 --version
 
 
