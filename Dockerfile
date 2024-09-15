@@ -4,7 +4,7 @@ FROM archlinux:base-devel AS base
 RUN pacman -Syu --noconfirm
 
 # Install dependancies needed by all steps including runtime step
-RUN pacman -S --noconfirm --needed l-smash vapoursynth ffms2 mkvtoolnix-cli vmaf
+RUN pacman -S --noconfirm --needed aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf
 
 
 # Stage 2: Build image with additional dependencies
@@ -30,6 +30,14 @@ FROM build-base AS build
 COPY --from=planner /tmp/Av1an/recipe.json recipe.json
 RUN cargo chef cook --release
 
+# Compile rav1e from git, as archlinux is still on rav1e 0.4
+RUN git clone https://github.com/xiph/rav1e && \
+    cd rav1e && \
+    cargo build --release && \
+    strip ./target/release/rav1e && \
+    mv ./target/release/rav1e /usr/local/bin && \
+    cd .. && rm -rf ./rav1e
+
 # Build av1an
 COPY . /tmp/Av1an
 
@@ -38,9 +46,14 @@ RUN cargo build --release && \
     cd .. && rm -rf ./Av1an
 
 # FFmpeg setup
-RUN curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
+RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz -o ffmpeg.tar.xz && \
+    tar -xvf ffmpeg.tar.xz && \
+    mv -v ffmpeg-master-latest-linux64-gpl/bin/* /usr/local/bin && \
+    chmod 777 /usr/local/bin/ffmpeg && \
+    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
     mv -v x265 /usr/local/bin && \
     chmod 777 /usr/local/bin/x265
+    x265 --version
 
 
 # Stage 5: Runtime image
@@ -48,6 +61,7 @@ FROM base AS runtime
 
 ENV MPLCONFIGDIR="/home/app_user/"
 
+COPY --from=build /usr/local/bin/rav1e /usr/local/bin/rav1e
 COPY --from=build /usr/local/bin/av1an /usr/local/bin/av1an
 
 # Create user
