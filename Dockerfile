@@ -4,7 +4,7 @@ FROM archlinux:base-devel AS base
 RUN pacman -Syu --noconfirm
 
 # Install dependancies needed by all steps including runtime step
-RUN pacman -S --noconfirm --needed lsmash vapoursynth ffms2 mkvtoolnix-cli vmaf
+RUN pacman -S --noconfirm --needed l-smash vapoursynth ffms2 mkvtoolnix-cli vmaf
 
 
 # Stage 2: Build image with additional dependencies
