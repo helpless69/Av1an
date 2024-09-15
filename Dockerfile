@@ -38,9 +38,9 @@ RUN cargo build --release && \
     cd .. && rm -rf ./Av1an
 
 # FFmpeg setup
-# RUN curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
-#    mv -v x265 /usr/local/bin && \
-#    chmod 777 /usr/local/bin/x265
+RUN curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
+    mv -v x265 /usr/local/bin && \
+    chmod 777 /usr/local/bin/x265
 
 
 # Stage 5: Runtime image
