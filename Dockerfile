@@ -4,7 +4,7 @@ FROM archlinux:base-devel AS base
 RUN pacman -Syu --noconfirm
 
 # Install dependancies needed by all steps including runtime step
-RUN pacman -S --noconfirm --needed aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf
+RUN pacman -S --noconfirm --needed l-smash aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf
 
 
 # Stage 2: Build image with additional dependencies
@@ -53,7 +53,6 @@ RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpe
     curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
     mv -v x265 /usr/local/bin && \
     chmod 777 /usr/local/bin/x265
-    x265 --version
 
 
 # Stage 5: Runtime image
