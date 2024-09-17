@@ -1,19 +1,17 @@
 # Stage 1: Base image with dependencies
-FROM archlinux:base AS base
+FROM archlinux:base-devel AS base
 
-# Update and install dependencies in a single layer to reduce layers and use caching
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed l-smash aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf && \
-    pacman -Scc --noconfirm
+RUN pacman -Syu --noconfirm
+
+# Install dependencies needed by all steps including runtime step, but don't install x264 and x265
+RUN pacman -S --noconfirm --needed l-smash aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
 
-# Install build dependencies and clean up cache
-RUN pacman -S --noconfirm --needed rust clang nasm git && \
-    pacman -Scc --noconfirm
+# Install dependencies needed by build steps
+RUN pacman -S --noconfirm --needed rust clang nasm git
 
-# Install cargo-chef for build preparation
 RUN cargo install cargo-chef
 WORKDIR /tmp/Av1an
 
@@ -26,21 +24,21 @@ RUN cargo chef prepare
 # Stage 4: Build stage
 FROM build-base AS build
 
-# Copy recipe from planner stage and build using cargo-chef
 COPY --from=planner /tmp/Av1an/recipe.json recipe.json
 RUN cargo chef cook --release
 
-# Compile rav1e from source and move it to the correct location
+# Compile rav1e from git, as archlinux is still on rav1e 0.4
 RUN git clone https://github.com/xiph/rav1e && \
     cd rav1e && \
-    cargo build --release --jobs $(nproc) && \
+    cargo build --release && \
     strip ./target/release/rav1e && \
     mv ./target/release/rav1e /usr/local/bin && \
     cd .. && rm -rf ./rav1e
 
-# Build av1an from source
+# Build av1an
 COPY . /tmp/Av1an
-RUN cargo build --release --jobs $(nproc) && \
+
+RUN cargo build --release && \
     mv ./target/release/av1an /usr/local/bin && \
     cd .. && rm -rf ./Av1an
 
@@ -62,20 +60,16 @@ RUN pacman -Qi x264 && pacman -Rns --noconfirm x264 || echo "x264 not installed"
 # Stage 5: Runtime image
 FROM base AS runtime
 
-# Set environment variable
 ENV MPLCONFIGDIR="/home/app_user/"
 
-# Copy the compiled binaries from build stage
 COPY --from=build /usr/local/bin/rav1e /usr/local/bin/rav1e
 COPY --from=build /usr/local/bin/av1an /usr/local/bin/av1an
 
-# Create a non-root user to run the application
+# Create user
 RUN useradd -ms /bin/bash app_user
 USER app_user
 
-# Set the working directory and expose the volume
 VOLUME ["/videos"]
 WORKDIR /videos
 
-# Set the entry point for av1an
 ENTRYPOINT [ "/usr/local/bin/av1an" ]
