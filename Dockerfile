@@ -54,8 +54,8 @@ RUN pacman -Qi x264 && pacman -Rns --noconfirm x264 || echo "x264 not installed"
     curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x264 -o /usr/bin/x264 && \
     chmod 777 /usr/bin/x264 && \
     x264 --version && \
-    x265 --version && \
-    pacman -Scc --noconfirm
+    x265 --version
+    
 
 # Stage 5: Runtime image
 FROM base AS runtime
