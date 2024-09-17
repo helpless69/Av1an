@@ -43,8 +43,9 @@ RUN cargo build --release && \
     cd .. && rm -rf ./Av1an
 
 # FFmpeg setup
-# Uninstall any pre-installed versions of x264 and x265 from the system
-RUN pacman -Rns --noconfirm x264 x265
+# Check and uninstall any pre-installed versions of x264 and x265 from the system
+RUN pacman -Qi x264 && pacman -Rns --noconfirm x264 || echo "x264 not installed" && \
+    pacman -Qi x265 && pacman -Rns --noconfirm x265 || echo "x265 not installed"
 
 # Download and install ffmpeg, x264, and x265
 RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz -o ffmpeg.tar.xz && \
