@@ -3,26 +3,23 @@ FROM archlinux:base-devel AS base
 
 RUN pacman -Syu --noconfirm
 
-# Install dependancies needed by all steps including runtime step
+# Install dependencies needed by all steps including runtime step, but don't install x264 and x265
 RUN pacman -S --noconfirm --needed l-smash aom vapoursynth ffms2 libvpx mkvtoolnix-cli svt-av1 vmaf
-
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
 
-# Install dependancies needed by build steps
+# Install dependencies needed by build steps
 RUN pacman -S --noconfirm --needed rust clang nasm git
 
 RUN cargo install cargo-chef
 WORKDIR /tmp/Av1an
-
 
 # Stage 3: Planner stage
 FROM build-base AS planner
 
 COPY . .
 RUN cargo chef prepare
-
 
 # Stage 4: Build stage
 FROM build-base AS build
@@ -46,19 +43,20 @@ RUN cargo build --release && \
     cd .. && rm -rf ./Av1an
 
 # FFmpeg setup
+# Uninstall any pre-installed versions of x264 and x265 from the system
+RUN pacman -Rns --noconfirm x264 x265
+
+# Download and install ffmpeg, x264, and x265
 RUN curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz -o ffmpeg.tar.xz && \
     tar -xvf ffmpeg.tar.xz && \
     mv -v ffmpeg-master-latest-linux64-gpl/bin/* /usr/bin && \
     chmod 777 /usr/bin/ffmpeg && \
-    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o x265 && \
-    mv -v x265 /usr/bin && \
+    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x265 -o /usr/bin/x265 && \
     chmod 777 /usr/bin/x265 && \
-    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x264 -o x264 && \
-    mv -v x264 /usr/bin && \
+    curl -L https://onedrive-cf-index-ng-76f.pages.dev/api/raw?path=/x264 -o /usr/bin/x264 && \
     chmod 777 /usr/bin/x264 && \
     x264 --version && \
     x265 --version
-
 
 # Stage 5: Runtime image
 FROM base AS runtime
