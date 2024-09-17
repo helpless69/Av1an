@@ -4,7 +4,7 @@ FROM archlinux:base-devel AS base
 RUN pacman -Syu --noconfirm
 
 # Install dependencies needed by all steps including runtime step, but don't install x264 and x265
-RUN pacman -S --noconfirm --needed l-smash vapoursynth ffms2 mkvtoolnix-cli vmaf libnuma
+RUN pacman -S --noconfirm --needed l-smash vapoursynth ffms2 mkvtoolnix-cli vmaf numactl
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
