@@ -28,7 +28,7 @@ FROM build-base AS build
 
 # Copy recipe from planner stage and build using cargo-chef
 COPY --from=planner /tmp/Av1an/recipe.json recipe.json
-RUN cargo chef cook --release --jobs $(nproc)
+RUN cargo chef cook --release
 
 # Compile rav1e from source and move it to the correct location
 RUN git clone https://github.com/xiph/rav1e && \
