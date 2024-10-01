@@ -4,7 +4,7 @@ FROM archlinux:base-devel AS base
 RUN pacman -Syu --noconfirm
 
 # Install dependencies needed by all steps including runtime step, but don't install x264 and x265
-RUN pacman -S --noconfirm --needed python kvtoolnix-cli vapoursynth gum numactl l-smash vapoursynth-plugin-lsmashsource ffms2
+RUN pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
