@@ -32,14 +32,6 @@ RUN git clone https://github.com/xiph/rav1e && \
     mv ./target/release/rav1e /usr/local/bin && \
     cd .. && rm -rf ./rav1e
 
-# Install zimg
-RUN git clone https://github.com/sekrit-twc/zimg.git && \
-    cd zimg && \
-    ./autogen.sh && \
-    ./configure && \
-    make && \
-    make install
-
 # Install l-smash
 RUN git clone https://github.com/l-smash/l-smash && \
     cd l-smash && \
