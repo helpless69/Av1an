@@ -1,8 +1,15 @@
 # Stage 1: Base image with dependencies
 FROM archlinux:base-devel AS base
 
+# Install base dependencies and yay
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2
+    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2 git base-devel && \
+    git clone https://aur.archlinux.org/yay.git && \
+    cd yay && makepkg -si --noconfirm && \
+    cd .. && rm -rf yay
+
+# Use yay to install vapoursynth-plugin-lsmashsource-git from AUR
+RUN yay -S --noconfirm vapoursynth-plugin-lsmashsource-git
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
@@ -33,10 +40,7 @@ RUN git clone https://github.com/xiph/rav1e && \
     cd .. && rm -rf ./rav1e
 
 # Install zimg
-RUN cd $HOME && \
-    mkdir -p .installs && \
-    cd .installs && \
-    git clone https://github.com/sekrit-twc/zimg.git && \
+RUN git clone https://github.com/sekrit-twc/zimg.git && \
     cd zimg && \
     ./autogen.sh && \
     ./configure && \
