@@ -1,15 +1,22 @@
-# Stage 1: Base image with dependencies
-FROM archlinux:base-devel AS base
-
-# Install base dependencies and yay
+# Install base dependencies and sudo
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2 git base-devel && \
-    git clone https://aur.archlinux.org/yay.git && \
+    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2 git base-devel sudo
+
+# Create a non-root user for building AUR packages
+RUN useradd -m aurbuilder && echo "aurbuilder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+USER aurbuilder
+WORKDIR /home/aurbuilder
+
+# Install yay as the non-root user
+RUN git clone https://aur.archlinux.org/yay.git && \
     cd yay && makepkg -si --noconfirm && \
     cd .. && rm -rf yay
 
-# Use yay to install vapoursynth-plugin-lsmashsource-git from AUR
+# Install AUR package vapoursynth-plugin-lsmashsource-git using yay
 RUN yay -S --noconfirm vapoursynth-plugin-lsmashsource-git
+
+# Switch back to root to complete the rest of the Docker build
+USER root
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
