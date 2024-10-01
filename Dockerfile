@@ -10,15 +10,15 @@ RUN useradd -m aurbuilder && echo "aurbuilder ALL=(ALL) NOPASSWD: ALL" >> /etc/s
 USER aurbuilder
 WORKDIR /home/aurbuilder
 
-# Install yay as the non-root user
+# Install yay as the non-root user for AUR packages
 RUN git clone https://aur.archlinux.org/yay.git && \
     cd yay && makepkg -si --noconfirm && \
     cd .. && rm -rf yay
 
-# Install AUR package vapoursynth-plugin-lsmashsource-git using yay
+# Install vapoursynth-plugin-lsmashsource-git using yay
 RUN yay -S --noconfirm vapoursynth-plugin-lsmashsource-git
 
-# Switch back to root to complete the rest of the Docker build
+# Switch back to root for the rest of the Dockerfile
 USER root
 
 # Stage 2: Build image with additional dependencies
