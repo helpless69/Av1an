@@ -1,3 +1,6 @@
+# Use Arch Linux base image
+FROM archlinux:base-devel
+
 # Install base dependencies and sudo
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2 git base-devel sudo
