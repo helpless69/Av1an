@@ -1,25 +1,8 @@
-# Use Arch Linux base image
-FROM archlinux:base-devel
+# Stage 1: Base image with dependencies
+FROM archlinux:base-devel AS base
 
-# Install base dependencies and sudo
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2 git base-devel sudo
-
-# Create a non-root user for building AUR packages
-RUN useradd -m aurbuilder && echo "aurbuilder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-USER aurbuilder
-WORKDIR /home/aurbuilder
-
-# Install yay as the non-root user for AUR packages
-RUN git clone https://aur.archlinux.org/yay.git && \
-    cd yay && makepkg -si --noconfirm && \
-    cd .. && rm -rf yay
-
-# Install vapoursynth-plugin-lsmashsource-git using yay
-RUN yay -S --noconfirm vapoursynth-plugin-lsmashsource-git
-
-# Switch back to root for the rest of the Dockerfile
-USER root
+    pacman -S --noconfirm --needed python mkvtoolnix-cli vapoursynth gum numactl l-smash ffms2
 
 # Stage 2: Build image with additional dependencies
 FROM base AS build-base
