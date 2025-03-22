@@ -1,22 +1,3 @@
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::cast_sign_loss)]
-#![allow(clippy::cast_precision_loss)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::if_not_else)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::items_after_statements)]
-#![allow(clippy::wildcard_imports)]
-#![allow(clippy::unsafe_derive_deserialize)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::use_self)]
-
 #[macro_use]
 extern crate log;
 
@@ -52,6 +33,7 @@ pub mod concat;
 pub mod context;
 pub mod encoder;
 pub mod ffmpeg;
+pub mod logging;
 pub(crate) mod parse;
 pub mod progress_bar;
 pub mod scene_detect;
@@ -115,16 +97,17 @@ impl Input {
     matches!(&self, Input::VapourSynth { .. })
   }
 
-  pub fn frames(&self) -> anyhow::Result<usize> {
+  pub fn frames(&self, vs_script_path: Option<PathBuf>) -> anyhow::Result<usize> {
     const FAIL_MSG: &str = "Failed to get number of frames for input video";
     Ok(match &self {
-      Input::Video { path } => {
+      Input::Video { path } if vs_script_path.is_none() => {
         ffmpeg::num_frames(path.as_path()).map_err(|_| anyhow::anyhow!(FAIL_MSG))?
       }
-      Input::VapourSynth { path, .. } => {
-        vapoursynth::num_frames(path.as_path(), self.as_vspipe_args_map()?)
-          .map_err(|_| anyhow::anyhow!(FAIL_MSG))?
-      }
+      path => vapoursynth::num_frames(
+        vs_script_path.as_deref().unwrap_or(path.as_path()),
+        self.as_vspipe_args_map()?,
+      )
+      .map_err(|_| anyhow::anyhow!(FAIL_MSG))?,
     })
   }
 
@@ -404,7 +387,7 @@ fn save_chunk_queue(temp: &str, chunk_queue: &[Chunk]) -> anyhow::Result<()> {
   Ok(())
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verbosity {
   Verbose,
   Normal,

@@ -32,6 +32,7 @@ pub enum Encoder {
   x265,
 }
 
+#[tracing::instrument]
 pub(crate) fn parse_svt_av1_version(version: &[u8]) -> Option<(u32, u32, u32)> {
   let v_idx = memchr::memchr(b'v', version)?;
   let s = version.get(v_idx + 1..)?;
@@ -149,7 +150,7 @@ impl Encoder {
       Self::x265 => chain!(
         into_array!["x265", "--y4m", "--frames", frame_count.to_string()],
         params,
-        into_array!["-", "-o", output]
+        into_array!["--input", "-", "-o", output]
       )
       .collect(),
     }
@@ -232,6 +233,7 @@ impl Encoder {
           format!("{fpf}.log"),
           "--analysis-reuse-file",
           format!("{fpf}_analysis.dat"),
+          "--input",
           "-",
           "-o",
           NULL
@@ -331,6 +333,7 @@ impl Encoder {
           format!("{fpf}.log"),
           "--analysis-reuse-file",
           format!("{fpf}_analysis.dat"),
+          "--input",
           "-",
           "-o",
           output
@@ -759,6 +762,8 @@ impl Encoder {
         "fast",
         "--crf",
         q.to_string(),
+        "--input",
+        "-",
       ],
     }
   }
@@ -796,6 +801,8 @@ impl Encoder {
         "--y4m",
         "--crf",
         q.to_string(),
+        "--input",
+        "-",
       ],
     }
   }
@@ -813,6 +820,7 @@ impl Encoder {
     }
   }
 
+  #[allow(clippy::too_many_arguments)]
   /// Constructs tuple of commands for target quality probing
   pub fn probe_cmd(
     self,
@@ -864,9 +872,10 @@ impl Encoder {
 
     let output: Vec<Cow<str>> = match self {
       Self::svt_av1 => chain!(params, into_array!["-b", probe_path]).collect(),
-      Self::aom | Self::rav1e | Self::vpx | Self::x264 | Self::x265 => {
+      Self::aom | Self::rav1e | Self::vpx | Self::x264 => {
         chain!(params, into_array!["-o", probe_path, "-"]).collect()
       }
+      Self::x265 => chain!(params, into_array!["-o", probe_path]).collect(),
     };
 
     (pipe, output)

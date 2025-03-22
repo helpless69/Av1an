@@ -15,6 +15,8 @@ use smallvec::{smallvec, SmallVec};
 use crate::scenes::Scene;
 use crate::{into_smallvec, progress_bar, Encoder, Input, ScenecutMethod, Verbosity};
 
+#[tracing::instrument]
+#[allow(clippy::too_many_arguments)]
 pub fn av_scenechange_detect(
   input: &Input,
   encoder: Encoder,
@@ -38,7 +40,7 @@ pub fn av_scenechange_detect(
 
   let input2 = input.clone();
   let frame_thread = thread::spawn(move || {
-    let frames = input2.frames().unwrap();
+    let frames = input2.frames(None).unwrap();
     if verbosity != Verbosity::Quiet {
       progress_bar::convert_to_progress(0);
       progress_bar::set_len(frames as u64);
@@ -46,6 +48,7 @@ pub fn av_scenechange_detect(
     frames
   });
 
+  let frames = frame_thread.join().unwrap();
   let scenes = scene_detect(
     input,
     encoder,
@@ -65,15 +68,13 @@ pub fn av_scenechange_detect(
     zones,
   )?;
 
-  let frames = frame_thread.join().unwrap();
-
   progress_bar::finish_progress_bar();
 
   Ok((scenes, frames))
 }
 
 /// Detect scene changes using rav1e scene detector.
-#[allow(clippy::option_if_let_else)]
+#[allow(clippy::too_many_arguments)]
 pub fn scene_detect(
   input: &Input,
   encoder: Encoder,
@@ -203,6 +204,7 @@ pub fn scene_detect(
   Ok(scenes)
 }
 
+#[tracing::instrument]
 fn build_decoder(
   input: &Input,
   encoder: Encoder,

@@ -18,9 +18,10 @@ use av1_grain::TransferFunction;
 use crossbeam_utils;
 use itertools::Itertools;
 use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand::rng;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::ChildStderr;
+use tracing::{debug, error, info, warn};
 
 use crate::broker::{Broker, EncoderCrash};
 use crate::chunk::Chunk;
@@ -41,6 +42,7 @@ use crate::{
   vmaf, ChunkMethod, ChunkOrdering, DashMap, DoneJson, Input, SplitMethod, Verbosity,
 };
 
+#[derive(Debug)]
 pub struct Av1anContext {
   pub frames: usize,
   pub vs_script: Option<PathBuf>,
@@ -48,6 +50,7 @@ pub struct Av1anContext {
 }
 
 impl Av1anContext {
+  #[tracing::instrument]
   pub fn new(mut args: EncodeArgs) -> anyhow::Result<Self> {
     args.validate()?;
     let mut this = Self {
@@ -60,6 +63,7 @@ impl Av1anContext {
   }
 
   /// Initialize logging routines and create temporary directories
+  #[tracing::instrument]
   fn initialize(&mut self) -> anyhow::Result<()> {
     ffmpeg::init()?;
     ffmpeg::util::log::set_level(ffmpeg::util::log::level::Level::Fatal);
@@ -116,7 +120,7 @@ impl Av1anContext {
 
       // frames need to be recalculated in this case
       if self.frames == 0 {
-        self.frames = self.args.input.frames()?;
+        self.frames = self.args.input.frames(self.vs_script.clone())?;
         done.frames.store(self.frames, atomic::Ordering::Relaxed);
       }
 
@@ -135,6 +139,7 @@ impl Av1anContext {
     Ok(())
   }
 
+  #[tracing::instrument]
   pub fn encode_file(&mut self) -> anyhow::Result<()> {
     let initial_frames = get_done()
       .done
@@ -326,7 +331,7 @@ impl Av1anContext {
 
       // TODO add explicit parameter to concatenation functions to control whether audio is also muxed in
       let _audio_output_exists =
-        audio_thread.map_or(false, |audio_thread| audio_thread.join().unwrap());
+        audio_thread.is_some_and(|audio_thread| audio_thread.join().unwrap());
 
       debug!("encoding finished, concatenating with {}", self.args.concat);
 
@@ -414,6 +419,7 @@ impl Av1anContext {
     Ok(())
   }
 
+  #[tracing::instrument]
   fn read_queue_files(source_path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut queue_files = fs::read_dir(source_path)
       .with_context(|| format!("Failed to read queue files from source path {source_path:?}"))?
@@ -716,7 +722,7 @@ impl Av1anContext {
         // Already in order
       }
       ChunkOrdering::Random => {
-        chunks.shuffle(&mut thread_rng());
+        chunks.shuffle(&mut rng());
       }
     }
 
@@ -726,9 +732,18 @@ impl Av1anContext {
   fn calc_split_locations(&self) -> anyhow::Result<(Vec<Scene>, usize)> {
     let zones = self.parse_zones()?;
 
+    // Create a new input with the generated VapourSynth script for Scene Detection
+    let input = self.vs_script.as_ref().map_or_else(
+      || self.args.input.clone(),
+      |vs_script| Input::VapourSynth {
+        path: vs_script.clone(),
+        vspipe_args: Vec::new(),
+      },
+    );
+
     Ok(match self.args.split_method {
       SplitMethod::AvScenechange => av_scenechange_detect(
-        &self.args.input,
+        &input,
         self.args.encoder,
         self.frames,
         self.args.min_scene_len,
@@ -764,8 +779,7 @@ impl Av1anContext {
             zone_overrides: None,
           });
         }
-
-        (scenes, self.args.input.frames()?)
+        (scenes, self.args.input.frames(self.vs_script.clone())?)
       }
     })
   }
@@ -804,7 +818,7 @@ impl Av1anContext {
         crate::split::read_scenes_from_file(scene_file.as_ref())?
       } else {
         used_existing_cuts = false;
-        self.frames = self.args.input.frames()?;
+        self.frames = self.args.input.frames(self.vs_script.clone())?;
         self.calc_split_locations()?
       };
     self.frames = frames;
@@ -910,8 +924,12 @@ impl Av1anContext {
         || self.args.video_params.clone(),
         |ovr| ovr.video_params.clone(),
       ),
-      passes: self.args.passes,
-      encoder: self.args.encoder,
+      passes: overrides
+        .as_ref()
+        .map_or(self.args.passes, |ovr| ovr.passes),
+      encoder: overrides
+        .as_ref()
+        .map_or(self.args.encoder, |ovr| ovr.encoder),
       noise_size: self.args.photon_noise_size,
       tq_cq: None,
       ignore_frame_mismatch: self.args.ignore_frame_mismatch,
@@ -966,8 +984,14 @@ impl Av1anContext {
         || self.args.video_params.clone(),
         |ovr| ovr.video_params.clone(),
       ),
-      passes: self.args.passes,
-      encoder: self.args.encoder,
+      passes: scene
+        .zone_overrides
+        .as_ref()
+        .map_or(self.args.passes, |ovr| ovr.passes),
+      encoder: scene
+        .zone_overrides
+        .as_ref()
+        .map_or(self.args.encoder, |ovr| ovr.encoder),
       noise_size: self.args.photon_noise_size,
       tq_cq: None,
       ignore_frame_mismatch: self.args.ignore_frame_mismatch,
@@ -1119,6 +1143,7 @@ impl Av1anContext {
     Ok(chunk_queue)
   }
 
+  #[tracing::instrument]
   fn create_chunk_from_segment(
     &self,
     index: usize,
@@ -1168,8 +1193,12 @@ impl Av1anContext {
         || self.args.video_params.clone(),
         |ovr| ovr.video_params.clone(),
       ),
-      passes: self.args.passes,
-      encoder: self.args.encoder,
+      passes: overrides
+        .as_ref()
+        .map_or(self.args.passes, |ovr| ovr.passes),
+      encoder: overrides
+        .as_ref()
+        .map_or(self.args.encoder, |ovr| ovr.encoder),
       noise_size: self.args.photon_noise_size,
       tq_cq: None,
       ignore_frame_mismatch: self.args.ignore_frame_mismatch,
